@@ -27,6 +27,19 @@ jobs:
         run: |
           docker compose up --build -d
           python3 scripts/smoke.py
+      - name: Run steady and burst k6 scenarios
+        run: |
+          docker run --rm --network host -v "$PWD/load:/scripts:ro" \
+            -e BASE_URL=http://127.0.0.1:8080 \
+            -e EMAIL=load@example.test -e PASSWORD=load-password-123 \
+            -e K6_RATE=1 -e K6_DURATION=30s \
+            grafana/k6:2.1.0 run /scripts/load.js
+          docker run --rm --network host -v "$PWD/load:/scripts:ro" \
+            -e BASE_URL=http://127.0.0.1:8080 \
+            -e EMAIL=load@example.test -e PASSWORD=load-password-123 \
+            grafana/k6:2.1.0 run /scripts/rate-limit.js
+      - name: Check monitoring targets and dashboard
+        run: python3 scripts/monitoring_check.py
       - name: Show Compose logs on failure
         if: failure()
         run: docker compose logs --tail=100

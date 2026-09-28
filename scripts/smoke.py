@@ -46,6 +46,9 @@ def main():
     status, _, _ = call("POST", "/auth/register", body={
         "name": "Smoke User", "email": "smoke@example.test", "password": "smoke-password-123"})
     expect(status, 201, "registration")
+    status, _, _ = call("POST", "/auth/register", body={
+        "name": "Load User", "email": "load@example.test", "password": "load-password-123"})
+    expect(status, 201, "load test user registration")
     status, _, result = call("POST", "/auth/login", body={
         "email": "smoke@example.test", "password": "smoke-password-123"})
     expect(status, 200, "user login")
@@ -82,8 +85,21 @@ def main():
     assert limited, "Token bucket did not reject a burst"
 
     subprocess.run(["docker", "compose", "stop", "product-service"], check=True)
-    status, _, result = call("GET", f"/api/products/{product_id}", admin)
-    expect(status, 503, "product failure fallback")
+    try:
+        status, _, _ = call("GET", f"/api/products/{product_id}", admin)
+        expect(status, 503, "product failure fallback")
+    finally:
+        subprocess.run(["docker", "compose", "start", "product-service"], check=True)
+    for _ in range(60):
+        try:
+            status, _, _ = call("GET", f"/api/products/{product_id}", admin)
+            if status == 200:
+                break
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(2)
+    else:
+        raise AssertionError("Product service did not recover after restart")
     print("Compose smoke, authorization, rate limit, and failure checks passed")
 
 

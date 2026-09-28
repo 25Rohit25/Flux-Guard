@@ -40,7 +40,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Gateway: `http://localhost:8080` · Grafana: `http://localhost:3000` (login `admin` with `GRAFANA_PASSWORD`). Both published ports bind to localhost; Prometheus and service ports are internal to Compose. `docker compose down` stops the stack; `docker compose down -v` also removes stored data.
+Gateway: `http://localhost:8080` · Grafana: `http://localhost:3000` (login `admin` with `GRAFANA_PASSWORD`) · Prometheus: `http://localhost:9091`. All published ports bind to localhost; service ports are internal to Compose. `docker compose down` stops the stack; `docker compose down -v` also removes stored data.
 
 ### Example API flow
 
@@ -80,7 +80,7 @@ mvn -B -ntp verify
 
 Service integration tests use H2 and do not require Docker. The gateway integration test checks route registration, JWT/RBAC responses, request IDs, and fail-closed behavior when Redis is absent. For a full stack test, run Compose and exercise the endpoints above.
 
-The CI workflow also starts Compose and runs `scripts/smoke.py` to check real routing, authorization, order pricing, Redis throttling, and a stopped product service. This requires Docker and cannot be covered by the H2 tests alone.
+The CI workflow also starts Compose and runs `scripts/smoke.py` to check real routing, authorization, order pricing, Redis throttling, and a stopped product service. It restarts that service, runs both k6 scenarios, then uses `scripts/monitoring_check.py` to verify all four Prometheus targets, the provisioned Grafana datasource and dashboard, and key metrics. This requires Docker and cannot be covered by the H2 tests alone.
 
 Run k6 after creating a user:
 
