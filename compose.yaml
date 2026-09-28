@@ -1,0 +1,123 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fluxguard
+      POSTGRES_USER: fluxguard
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxguard -d fluxguard"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks: [internal]
+
+  user-service:
+    build:
+      context: .
+      args: { MODULE: user-service }
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/fluxguard
+      DB_USER: fluxguard
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+
+  product-service:
+    build:
+      context: .
+      args: { MODULE: product-service }
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/fluxguard
+      DB_USER: fluxguard
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+
+  order-service:
+    build:
+      context: .
+      args: { MODULE: order-service }
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/fluxguard
+      DB_USER: fluxguard
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      PRODUCT_URL: http://product-service:8082
+    depends_on:
+      postgres: { condition: service_healthy }
+      product-service: { condition: service_started }
+    networks: [internal]
+
+  gateway:
+    build:
+      context: .
+      args: { MODULE: gateway }
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      REDIS_HOST: redis
+      USER_URL: http://user-service:8081
+      PRODUCT_URL: http://product-service:8082
+      ORDER_URL: http://order-service:8083
+      RATE_REPLENISH: ${RATE_REPLENISH:-10}
+      RATE_BURST: ${RATE_BURST:-100}
+    depends_on:
+      redis: { condition: service_healthy }
+      user-service: { condition: service_started }
+      product-service: { condition: service_started }
+      order-service: { condition: service_started }
+    networks: [internal]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [internal]
+    depends_on:
+      gateway: { condition: service_started }
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks: [internal]
+    depends_on:
+      prometheus: { condition: service_started }
+
+networks:
+  internal:
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:

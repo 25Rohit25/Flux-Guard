@@ -5,3 +5,5 @@
 .env
 *.log
 .m2/
+__pycache__/
+*.pyc

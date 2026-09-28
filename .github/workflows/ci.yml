@@ -1,0 +1,35 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Unit and integration tests
+        run: mvn -B -ntp verify
+      - name: Configure ephemeral Compose secrets
+        run: |
+          echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
+          echo 'DB_PASSWORD=ci-database-password-123' >> .env
+          echo 'ADMIN_EMAIL=admin@example.test' >> .env
+          echo 'ADMIN_PASSWORD=ci-admin-password-123' >> .env
+          echo 'GRAFANA_PASSWORD=ci-grafana-password-123' >> .env
+          echo 'RATE_REPLENISH=1' >> .env
+          echo 'RATE_BURST=20' >> .env
+      - name: Start and test the Compose stack
+        run: |
+          docker compose up --build -d
+          python3 scripts/smoke.py
+      - name: Show Compose logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+      - name: Stop Compose stack
+        if: always()
+        run: docker compose down -v
