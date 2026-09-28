@@ -89,7 +89,7 @@ k6 run -e EMAIL=user@example.com -e PASSWORD=long-password-123 load/load.js
 k6 run -e EMAIL=user@example.com -e PASSWORD=long-password-123 load/rate-limit.js
 ```
 
-The default load scenario sends five requests per second for one minute. Tune `K6_RATE` and `K6_DURATION`; a single login token shares one Redis bucket across all virtual users. The rate-limit scenario sends 500 calls across ten virtual users and fails if no `429` is observed. Performance claims should be based on measured k6 output, not assumed from configuration.
+The default load scenario sends five requests per second for one minute. Tune `FLUXGUARD_RATE` and `FLUXGUARD_DURATION`; a single login token shares one Redis bucket across all virtual users. The rate-limit scenario sends 500 calls across ten virtual users and fails if no `429` is observed. Performance claims should be based on measured k6 output, not assumed from configuration.
 
 ## Operations and limits
 

@@ -10,9 +10,9 @@ export const options = {
   scenarios: {
     steady: {
       executor: 'constant-arrival-rate',
-      rate: Number(__ENV.K6_RATE || 5),
+      rate: Number(__ENV.FLUXGUARD_RATE || 5),
       timeUnit: '1s',
-      duration: __ENV.K6_DURATION || '1m',
+      duration: __ENV.FLUXGUARD_DURATION || '1m',
       preAllocatedVUs: 10,
     },
   },
