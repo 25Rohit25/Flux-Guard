@@ -42,7 +42,7 @@ public class GatewaySecurity {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(a -> a
                 .pathMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
-                .pathMatchers("/actuator/health").permitAll()
+                .pathMatchers("/actuator/health", "/actuator/prometheus").permitAll()
                 .pathMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
                 .pathMatchers(HttpMethod.PUT, "/api/products/**", "/api/orders/*/status").hasRole("ADMIN")
                 .pathMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
