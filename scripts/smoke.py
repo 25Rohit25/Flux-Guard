@@ -36,7 +36,7 @@ def main():
                 "email": "admin@example.test", "password": "ci-admin-password-123"})
             if status == 200:
                 break
-        except (urllib.error.URLError, TimeoutError):
+        except (urllib.error.URLError, OSError):
             pass
         time.sleep(2)
     else:
@@ -50,6 +50,9 @@ def main():
         "email": "smoke@example.test", "password": "smoke-password-123"})
     expect(status, 200, "user login")
     user = result["accessToken"]
+    status, _, profile = call("GET", "/api/users/me", user)
+    expect(status, 200, "own profile through gateway")
+    expect(profile["email"], "smoke@example.test", "own profile email")
 
     status, headers, _ = call("GET", "/api/products")
     expect(status, 401, "anonymous access")
