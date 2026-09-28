@@ -29,7 +29,8 @@ class AuthIntegrationTest {
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String token = json.readTree(response).get("accessToken").asText();
         mvc.perform(get("/users/me").header("Authorization", "Bearer " + token))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.email").value("a@example.test"));
+            .andExpect(status().isOk()).andExpect(header().exists("X-Request-ID"))
+            .andExpect(jsonPath("$.email").value("a@example.test"));
         mvc.perform(get("/users/1").header("Authorization", "Bearer " + token))
             .andExpect(status().isForbidden());
     }

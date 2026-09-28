@@ -64,6 +64,10 @@ fluxguard:
 management:
   server:
     port: 9090
+  metrics:
+    distribution:
+      percentiles-histogram:
+        spring.cloud.gateway.requests: true
   endpoints:
     web:
       exposure:

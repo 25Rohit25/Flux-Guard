@@ -31,7 +31,7 @@ public class OrderController {
         this.products = RestClient.builder().baseUrl(productUrl).requestFactory(requests).build();
     }
 
-    public record ItemInput(@NotNull Long productId, @Min(1) int quantity) {}
+    public record ItemInput(@NotNull @Min(1) Long productId, @Min(1) int quantity) {}
     public record OrderInput(@NotEmpty List<@Valid ItemInput> items) {}
     public record ProductSnapshot(Long id, BigDecimal price, int stock) {}
     public record ItemView(Long productId, int quantity, BigDecimal price) {}
@@ -44,9 +44,10 @@ public class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Transactional
     public OrderView create(@Valid @RequestBody OrderInput input, JwtAuthenticationToken principal,
                             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+        if (input.items().stream().map(ItemInput::productId).distinct().count() != input.items().size())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate product in order");
         CustomerOrder order = new CustomerOrder(Long.valueOf(principal.getToken().getSubject()));
         for (ItemInput item : input.items()) {
             ProductSnapshot product;
@@ -93,10 +94,12 @@ public class OrderController {
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public OrderView updateStatus(@PathVariable Long id, @RequestBody StatusInput input) {
-        if (!List.of("CREATED", "FULFILLED", "CANCELLED").contains(input.status()))
+        if (input.status() == null || !List.of("CREATED", "FULFILLED", "CANCELLED").contains(input.status()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order status");
         CustomerOrder order = orders.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (!order.status.equals("CREATED") && !order.status.equals(input.status()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order is already final");
         order.status = input.status();
         return OrderView.of(order);
     }

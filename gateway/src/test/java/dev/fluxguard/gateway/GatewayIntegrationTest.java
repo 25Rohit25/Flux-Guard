@@ -3,11 +3,16 @@ package dev.fluxguard.gateway;
 import static org.junit.jupiter.api.Assertions.*;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.time.Instant;
+import javax.crypto.SecretKey;
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.gateway.route.RouteDefinitionLocator;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
@@ -16,6 +21,15 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 class GatewayIntegrationTest {
     @Autowired RouteDefinitionLocator routes;
     @Autowired WebTestClient client;
+    @Autowired SecretKey key;
+
+    private String userToken() {
+        JwtClaimsSet claims = JwtClaimsSet.builder().issuer("fluxguard").subject("42")
+            .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600))
+            .claim("role", "USER").build();
+        return new NimbusJwtEncoder(new ImmutableSecret<>(key)).encode(JwtEncoderParameters.from(
+            JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
+    }
 
     @Test void routesAreRegistered() {
         Set<String> ids = routes.getRouteDefinitions().map(r -> r.getId()).collectList().block()
@@ -28,5 +42,14 @@ class GatewayIntegrationTest {
             .expectStatus().isUnauthorized()
             .expectHeader().exists("X-Request-ID")
             .expectBody().jsonPath("$.status").isEqualTo(HttpStatus.UNAUTHORIZED.value());
+    }
+
+    @Test void gatewayEnforcesRoleAndFailsClosedWithoutRedis() {
+        String bearer = "Bearer " + userToken();
+        client.post().uri("/api/products").header("Authorization", bearer).exchange()
+            .expectStatus().isForbidden();
+        client.get().uri("/api/products").header("Authorization", bearer).exchange()
+            .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+            .expectBody().jsonPath("$.message").isEqualTo("Traffic control unavailable");
     }
 }

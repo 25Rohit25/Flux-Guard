@@ -23,7 +23,8 @@ public class FallbackController {
 
     private boolean causedByTimeout(Throwable error) {
         while (error != null) {
-            if (error instanceof TimeoutException) return true;
+            if (error instanceof TimeoutException || error instanceof io.netty.handler.timeout.TimeoutException
+                || error instanceof java.net.SocketTimeoutException) return true;
             error = error.getCause();
         }
         return false;

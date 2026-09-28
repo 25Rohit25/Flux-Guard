@@ -15,6 +15,9 @@ fluxguard:
   jwt-secret: ${JWT_SECRET}
   admin-email: ${ADMIN_EMAIL:}
   admin-password: ${ADMIN_PASSWORD:}
+logging:
+  pattern:
+    level: "%5p [requestId=%X{requestId:-}]"
 management:
   endpoints:
     web:
