@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:users;DB_CLOSE_DELAY=-1
+    username: sa
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+fluxguard:
+  jwt-secret: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+  admin-email: admin@example.test
+  admin-password: admin-password-123
